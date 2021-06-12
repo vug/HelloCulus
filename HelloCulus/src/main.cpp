@@ -134,6 +134,41 @@ void glutDisplay(void) {
 	ovr_GetEyePoses(session, frameIndex, ovrTrue, HmdToEyePose, EyeRenderPose, &sensorSampleTime);
 
 	ovrTimewarpProjectionDesc posTimewarpProjectionDesc = {};
+
+	if (sessionStatus.ShouldQuit) glutLeaveMainLoop();
+	if (sessionStatus.ShouldRecenter) ovr_RecenterTrackingOrigin(session);
+	if (sessionStatus.IsVisible) {
+		// Get next available index of the texture swap chain
+		int currentIndex = 0;
+		ovr_GetTextureSwapChainCurrentIndex(session, textureSwapChain, &currentIndex);
+		result = ovr_WaitToBeginFrame(session, frameIndex);
+
+		// Clear and set up render-target.
+		SetAndClearRenderSurface();
+
+		// Render Scene to Eye Buffers
+		result = ovr_BeginFrame(session, frameIndex);
+		UnsetRenderSurface();
+		// Commit the changes to the texture swap chain
+		ovr_CommitTextureSwapChain(session, textureSwapChain);
+
+		// Initialize our single full screen Fov layer.
+		ovrLayerEyeFov layer; // ovrLayerEyeFovDepth
+		layer.Header.Type = ovrLayerType_EyeFov;
+		layer.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
+		// layer.ProjectionDesc = posTimewarpProjectionDesc;
+		layer.SensorSampleTime = sensorSampleTime;
+		layer.ColorTexture[0] = textureSwapChain;
+		layer.ColorTexture[1] = textureSwapChain;
+		layer.Fov[0] = eyeRenderDesc[0].Fov;
+		layer.Fov[1] = eyeRenderDesc[1].Fov;
+		layer.Viewport[0] = OVR::Recti(0, 0, bufferSize.w / 2, bufferSize.h);
+		layer.Viewport[1] = OVR::Recti(bufferSize.w / 2, 0, bufferSize.w / 2, bufferSize.h);
+
+		// Submit frame with one layer we have.
+		ovrLayerHeader* layers = &layer.Header;
+		result = ovr_EndFrame(session, frameIndex, nullptr, &layers, 1);
+		++frameIndex;
 	ovrTrackingState ts = ovr_GetTrackingState(session, ovr_GetTimeInSeconds(), ovrTrue);
 	printPositionAndOrientation(ts, timeStep);
 	timeStep++;
