@@ -111,6 +111,11 @@ int main(int argc, char** argv) {
 	glutKeyboardFunc(glutKeyboard);
 	glutMainLoop();
 
+	// Exit
+	ovr_DestroyTextureSwapChain(session, textureSwapChain);
+	textureSwapChain = nullptr;
+	glDeleteFramebuffers(1, &fboId);
+	fboId = 0;
 	ovr_Destroy(session);
 	ovr_Shutdown();
 	std::cout << "Bye, Rift!" << std::endl;
