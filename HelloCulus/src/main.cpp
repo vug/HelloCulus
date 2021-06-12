@@ -199,6 +199,7 @@ void glutDisplay(void) {
 
 	// Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyePose) may change at runtime.
 	ovrEyeRenderDesc eyeRenderDesc[2];
+	ovrPosef hmdToEyeViewPose[2];
 	ovrHmdDesc hmdDesc2 = ovr_GetHmdDesc(session);
 	eyeRenderDesc[0] = ovr_GetRenderDesc(session, ovrEye_Left, hmdDesc2.DefaultEyeFov[0]);
 	eyeRenderDesc[1] = ovr_GetRenderDesc(session, ovrEye_Right, hmdDesc2.DefaultEyeFov[1]);
@@ -295,6 +296,7 @@ void glutKeyboard(unsigned char key, int x, int y) {
 	}
 }
 
+
 int main(int argc, char** argv) {
 	std::cout << "Hello, Rift!" << std::endl;
 	glutInit(&argc, argv);
@@ -322,6 +324,10 @@ int main(int argc, char** argv) {
 		eyeRenderTexture[eye] = new OculusTextureBuffer(session, idealTextureSize, 1);
 		if (!eyeRenderTexture[eye]->ColorTextureChain || !eyeRenderTexture[eye]->DepthTextureChain) { return 0; }
 	}
+	
+	// Turn off vsync
+	// wglSwapIntervalEXT(0); // throws "Access violation executing location" exception :-( glad problem?
+
 	// FloorLevel will give tracking poses where the floor height is 0
 	ovr_SetTrackingOriginType(session, ovrTrackingOrigin_FloorLevel);
 
