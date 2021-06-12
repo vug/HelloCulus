@@ -38,7 +38,6 @@ void printPositionAndOrientation(ovrTrackingState ts, int timeStep) {
 
 int timeStep = 0;
 ovrSession session;
-ovrLayerEyeFov layer;
 ovrPosef hmdToEyeViewPose[2];
 ovrTextureSwapChain textureSwapChain = 0;
 GLuint fboId;
@@ -104,14 +103,11 @@ void UnsetRenderSurface()
 }
 
 void glutDisplay(void) {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glBegin(GL_TRIANGLES);
-	glVertex3f(-0.5, -0.5, 0.0);
-	glVertex3f(0.5, 0.0, 0.0);
-	glVertex3f(0.0, 0.5, 0.0);
-	glEnd();
-
+	//glClear(GL_COLOR_BUFFER_BIT);
+	//glBegin(GL_TRIANGLES);
+	//	glVertex3f(-.5, -.5, .0); glVertex3f(.5, .0, .0); glVertex3f(.0, .5, .0);
+	//glEnd();
+	// Above render flickers. Probably need proper sync with Rift render
 	glutSwapBuffers();
 
 	ovrSessionStatus sessionStatus;
@@ -148,6 +144,36 @@ void glutDisplay(void) {
 
 		// Render Scene to Eye Buffers
 		result = ovr_BeginFrame(session, frameIndex);
+		OVR::Vector3f originPos(0.0f, 0.0f, 0.0f);
+		OVR::Matrix4f originRot = OVR::Matrix4f::Identity();
+		for (int eye = 0; eye < 2; eye++) {
+			// Get view and projection matrices for the Rift camera
+			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position);
+			OVR::Matrix4f rot = originRot * OVR::Matrix4f(EyeRenderPose[eye].Orientation);
+
+			OVR::Vector3f finalUp = rot.Transform(OVR::Vector3f(0, 1, 0));
+			OVR::Vector3f finalForward = rot.Transform(OVR::Vector3f(0, 0, -1));
+			OVR::Matrix4f view = OVR::Matrix4f::LookAtRH(pos, pos + finalForward, finalUp);
+			OVR::Matrix4f proj = ovrMatrix4f_Projection(hmdDesc2.DefaultEyeFov[eye], 0.2f, 1000.0f, ovrProjection_None);
+			OVR::Matrix4f combined = proj * view;
+
+			posTimewarpProjectionDesc = ovrTimewarpProjectionDesc_FromProjection(proj, ovrProjection_None);
+
+			OVR::Vector3f v1(-1.5, -1.5, -1.0);
+			OVR::Vector3f v2(1.5, 1.0, -1.0);
+			OVR::Vector3f v3(1.0, 1.5, -1.0);
+			v1 = combined.Transform(v1);
+			v2 = combined.Transform(v2);
+			v3 = combined.Transform(v3);
+
+			glClear(GL_COLOR_BUFFER_BIT);
+			glBegin(GL_TRIANGLES);
+			glVertex3f(v1.x, v1.y, v1.z);
+			glVertex3f(v2.x, v2.y, v2.z);
+			glVertex3f(v3.x, v3.y, v3.z);
+			glEnd();
+		}
+
 		UnsetRenderSurface();
 		// Commit the changes to the texture swap chain
 		ovr_CommitTextureSwapChain(session, textureSwapChain);
@@ -169,6 +195,8 @@ void glutDisplay(void) {
 		ovrLayerHeader* layers = &layer.Header;
 		result = ovr_EndFrame(session, frameIndex, nullptr, &layers, 1);
 		++frameIndex;
+	}
+
 	ovrTrackingState ts = ovr_GetTrackingState(session, ovr_GetTimeInSeconds(), ovrTrue);
 	printPositionAndOrientation(ts, timeStep);
 	timeStep++;
