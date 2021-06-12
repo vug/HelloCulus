@@ -10,7 +10,7 @@
 #include <OVR_CAPI_GL.h>
 #include <Extras/OVR_Math.h>
 
-#include "OculusTextureBuffer.h"
+#include "OculusBuffers.h"
 
 void printHmdInfo(const ovrHmdDesc& desc) {
 	std::cout << "Head Mounted Display Info" << std::endl;
