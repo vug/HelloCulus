@@ -38,6 +38,71 @@ void printPositionAndOrientation(ovrTrackingState ts, int timeStep) {
 
 int timeStep = 0;
 ovrSession session;
+ovrLayerEyeFov layer;
+ovrPosef hmdToEyeViewPose[2];
+ovrTextureSwapChain textureSwapChain = 0;
+GLuint fboId;
+ovrSizei bufferSize;
+long long frameIndex = 0;
+
+void createRenderingTexture(const ovrHmdDesc& hmdDesc) {
+	// The Oculus API allows the application to use either one shared texture or two separate textures for eye rendering. This example uses a single shared texture for simplicity, making it large enough to fit both eye renderings.
+	ovrSizei recommendedTex0Size = ovr_GetFovTextureSize(session, ovrEye_Left, hmdDesc.DefaultEyeFov[0], 1.0f);
+	ovrSizei recommendedTex1Size = ovr_GetFovTextureSize(session, ovrEye_Right, hmdDesc.DefaultEyeFov[1], 1.0f);
+	bufferSize.w = recommendedTex0Size.w + recommendedTex1Size.w;
+	bufferSize.h = std::max(recommendedTex0Size.h, recommendedTex1Size.h);
+	std::cout << "Render Texture Size: (" << bufferSize.w << ", " << bufferSize.h << ")" << std::endl;
+	ovrTextureSwapChainDesc desc = {};
+	desc.Type = ovrTexture_2D;
+	desc.ArraySize = 1;
+	desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.Width = bufferSize.w;
+	desc.Height = bufferSize.h;
+	desc.MipLevels = 1;
+	desc.SampleCount = 1;
+	desc.StaticImage = ovrFalse;
+	ovrResult result = ovr_CreateTextureSwapChainGL(session, &desc, &textureSwapChain);
+	if (OVR_FAILURE(result)) { std::cout << "TextureSwapChain creation failed." << std::endl; exit(0); }
+
+	int length = 0;
+	ovr_GetTextureSwapChainLength(session, textureSwapChain, &length);
+	std::cout << "Texture Swap Chain Length: " << length << std::endl;
+	for (int i = 0; i < length; i++) {
+		GLuint chainTexId;
+		ovr_GetTextureSwapChainBufferGL(session, textureSwapChain, i, &chainTexId);
+		glBindTexture(GL_TEXTURE_2D, chainTexId);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+	glGenFramebuffers(1, &fboId);
+}
+
+void SetAndClearRenderSurface() {
+	GLuint curColorTexId = 0;
+	{
+		int curIndex;
+		ovr_GetTextureSwapChainCurrentIndex(session, textureSwapChain, &curIndex);
+		ovr_GetTextureSwapChainBufferGL(session, textureSwapChain, curIndex, &curColorTexId);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fboId);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, curColorTexId, 0);
+
+	glViewport(0, 0, bufferSize.w, bufferSize.h);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glEnable(GL_FRAMEBUFFER_SRGB);
+}
+
+void UnsetRenderSurface()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, fboId);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+}
+
 void glutDisplay(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -84,26 +149,7 @@ int main(int argc, char** argv) {
 
 	ovrHmdDesc hmdDesc = ovr_GetHmdDesc(session);
 	printHmdInfo(hmdDesc);
-
-	// The Oculus API allows the application to use either one shared texture or two separate textures for eye rendering. This example uses a single shared texture for simplicity, making it large enough to fit both eye renderings.
-	ovrSizei recommendedTex0Size = ovr_GetFovTextureSize(session, ovrEye_Left, hmdDesc.DefaultEyeFov[0], 1.0f);
-	ovrSizei recommendedTex1Size = ovr_GetFovTextureSize(session, ovrEye_Left, hmdDesc.DefaultEyeFov[1], 1.0f);
-	ovrSizei bufferSize;
-	bufferSize.w = recommendedTex0Size.w + recommendedTex1Size.w;
-	bufferSize.h = std::max(recommendedTex0Size.h, recommendedTex1Size.h);
-	std::cout << "Render Texture Size: (" << bufferSize.w << ", " << bufferSize.h << ")" << std::endl;
-	ovrTextureSwapChain textureSwapChain = 0;
-	ovrTextureSwapChainDesc desc = {};
-	desc.Type = ovrTexture_2D;
-	desc.ArraySize = 1;
-	desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
-	desc.Width = bufferSize.w;
-	desc.Height = bufferSize.h;
-	desc.MipLevels = 1;
-	desc.SampleCount = 1;
-	desc.StaticImage = ovrFalse;
-	result = ovr_CreateTextureSwapChainGL(session, &desc, &textureSwapChain);
-	if (OVR_FAILURE(result)) { std::cout << "TextureSwapChain creation failed." << std::endl; return 0; }
+	createRenderingTexture(hmdDesc);
 
 	std::cout << "Press Q to quit." << std::endl;
 	glutDisplayFunc(glutDisplay);
