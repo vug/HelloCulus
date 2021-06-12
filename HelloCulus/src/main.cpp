@@ -186,6 +186,7 @@ ovrPosef hmdToEyeViewPose[2];
 ovrTextureSwapChain textureSwapChain = 0;
 GLuint fboId;
 ovrSizei bufferSize;
+OculusTextureBuffer* eyeRenderTexture[2] = { nullptr, nullptr };
 long long frameIndex = 0;
 
 void createRenderingTexture(const ovrHmdDesc& hmdDesc) {
@@ -280,17 +281,15 @@ void glutDisplay(void) {
 	if (sessionStatus.IsVisible) {
 		// Get next available index of the texture swap chain
 		int currentIndex = 0;
-		ovr_GetTextureSwapChainCurrentIndex(session, textureSwapChain, &currentIndex);
 		result = ovr_WaitToBeginFrame(session, frameIndex);
-
-		// Clear and set up render-target.
-		SetAndClearRenderSurface();
 
 		// Render Scene to Eye Buffers
 		result = ovr_BeginFrame(session, frameIndex);
 		OVR::Vector3f originPos(0.0f, 0.0f, 0.0f);
 		OVR::Matrix4f originRot = OVR::Matrix4f::Identity();
 		for (int eye = 0; eye < 2; eye++) {
+			eyeRenderTexture[eye]->SetAndClearRenderSurface();
+
 			// Get view and projection matrices for the Rift camera
 			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position);
 			OVR::Matrix4f rot = originRot * OVR::Matrix4f(EyeRenderPose[eye].Orientation);
@@ -316,27 +315,28 @@ void glutDisplay(void) {
 			glVertex3f(v2.x, v2.y, v2.z);
 			glVertex3f(v3.x, v3.y, v3.z);
 			glEnd();
+
+			eyeRenderTexture[eye]->UnsetRenderSurface();
+			eyeRenderTexture[eye]->Commit();
 		}
 
-		UnsetRenderSurface();
-		// Commit the changes to the texture swap chain
-		ovr_CommitTextureSwapChain(session, textureSwapChain);
+		ovrLayerEyeFovDepth ld = {};
+		ld.Header.Type = ovrLayerType_EyeFovDepth;
+		ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
+		ld.ProjectionDesc = posTimewarpProjectionDesc;
+		ld.SensorSampleTime = sensorSampleTime;
 
-		// Initialize our single full screen Fov layer.
-		ovrLayerEyeFov layer; // ovrLayerEyeFovDepth
-		layer.Header.Type = ovrLayerType_EyeFov;
-		layer.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
-		// layer.ProjectionDesc = posTimewarpProjectionDesc;
-		layer.SensorSampleTime = sensorSampleTime;
-		layer.ColorTexture[0] = textureSwapChain;
-		layer.ColorTexture[1] = textureSwapChain;
-		layer.Fov[0] = eyeRenderDesc[0].Fov;
-		layer.Fov[1] = eyeRenderDesc[1].Fov;
-		layer.Viewport[0] = OVR::Recti(0, 0, bufferSize.w / 2, bufferSize.h);
-		layer.Viewport[1] = OVR::Recti(bufferSize.w / 2, 0, bufferSize.w / 2, bufferSize.h);
+		for (int eye = 0; eye < 2; ++eye)
+		{
+			ld.ColorTexture[eye] = eyeRenderTexture[eye]->ColorTextureChain;
+			ld.DepthTexture[eye] = eyeRenderTexture[eye]->DepthTextureChain;
+			ld.Viewport[eye] = OVR::Recti(eyeRenderTexture[eye]->GetSize());
+			ld.Fov[eye] = hmdDesc2.DefaultEyeFov[eye];
+			ld.RenderPose[eye] = EyeRenderPose[eye];
+		}
 
 		// Submit frame with one layer we have.
-		ovrLayerHeader* layers = &layer.Header;
+		ovrLayerHeader* layers = &ld.Header;
 		result = ovr_EndFrame(session, frameIndex, nullptr, &layers, 1);
 		++frameIndex;
 	}
@@ -378,6 +378,14 @@ int main(int argc, char** argv) {
 	printHmdInfo(hmdDesc);
 	createRenderingTexture(hmdDesc);
 
+	// Make eye render buffers
+	for (int eye = 0; eye < 2; ++eye)
+	{
+		ovrSizei idealTextureSize = ovr_GetFovTextureSize(session, ovrEyeType(eye), hmdDesc.DefaultEyeFov[eye], 1);
+		eyeRenderTexture[eye] = new OculusTextureBuffer(session, idealTextureSize, 1);
+		if (!eyeRenderTexture[eye]->ColorTextureChain || !eyeRenderTexture[eye]->DepthTextureChain) { return 0; }
+	}
+
 	std::cout << "Press Q to quit." << std::endl;
 	glutDisplayFunc(glutDisplay);
 	glutIdleFunc(glutIdle);
@@ -389,6 +397,9 @@ int main(int argc, char** argv) {
 	textureSwapChain = nullptr;
 	glDeleteFramebuffers(1, &fboId);
 	fboId = 0;
+	for (int eye = 0; eye < 2; ++eye) {
+		delete eyeRenderTexture[eye];
+	}
 	ovr_Destroy(session);
 	ovr_Shutdown();
 	std::cout << "Bye, Rift!" << std::endl;
