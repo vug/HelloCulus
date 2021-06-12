@@ -3,6 +3,7 @@
 #include <Windows.h>
 
 #include <OVR_CAPI.h>
+#include <Extras/OVR_Math.h>
 
 void printHmdInfo(const ovrHmdDesc& desc) {
 	std::cout << "Head Mounted Display Info" << std::endl;
@@ -40,6 +41,22 @@ bool keyboardInterrupt() {
 	return shouldExit;
 }
 
+void printPositionAndOrientation(ovrTrackingState ts, int timeStep) {
+	std::cout << "\rtimeStep: " << std::setw(5) << timeStep << std::flush;
+	if (ts.StatusFlags & ovrStatus_OrientationTracked) {
+		ovrPosef pose = ts.HeadPose.ThePose;
+		ovrVector3f pos = pose.Position;
+		OVR::Quatf orientation = pose.Orientation;
+		float yaw, pitch, roll;
+		orientation.GetYawPitchRoll(&yaw, &pitch, &roll);
+		std::cout
+			<< std::showpos << std::fixed << std::setprecision(3)
+			<< " position: (" << pos.x << ", " << pos.y << ", " << pos.z << ")"
+			<< " yaw/pitch/roll: (" << yaw << ", " << pitch << ", " << roll << ")"
+			<< std::flush;
+	}
+}
+
 int main() {
 	std::cout << "Hello, Rift!" << std::endl;
 
@@ -58,9 +75,10 @@ int main() {
 	int timeStep = 0;
 	while (true) {
 		if (keyboardInterrupt()) break;
-		std::cout << "\rtime: " << std::setw(5) << timeStep << std::flush;
+		ovrTrackingState ts = ovr_GetTrackingState(session, ovr_GetTimeInSeconds(), ovrTrue);
+		printPositionAndOrientation(ts, timeStep);
 		timeStep++;
-		Sleep(100);
+		Sleep(10);
 	}
 	std::cout << std::endl;
 
