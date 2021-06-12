@@ -19,7 +19,6 @@ void printHmdInfo(const ovrHmdDesc& desc) {
 	std::cout << "  Firmware Version. Major: " << desc.FirmwareMajor << ", Minor: " << desc.FirmwareMinor << std::endl;
 	std::cout << "  Resolution. Width: " << desc.Resolution.w << ", Height: " << desc.Resolution.h << std::endl;
 	std::cout << "  Display Refresh Rate: " << desc.DisplayRefreshRate << std::endl;
-	// AvailableHmdCaps, DefaultHmdCaps, AvailableTrackingCaps, DefaultTrackingCaps, DefaultEyeFov, MaxEyeFov
 }
 
 void printPositionAndOrientation(ovrTrackingState ts, int timeStep) {
@@ -42,15 +41,10 @@ int timeStep = 0;
 ovrSession session;
 OculusTextureBuffer* eyeRenderTexture[2] = { nullptr, nullptr };
 long long frameIndex = 0;
+OVR::Sizei mirrorSize(600, 300);
+OculusMirrorBuffer* mirrorBuffer;
 
 void glutDisplay(void) {
-	//glClear(GL_COLOR_BUFFER_BIT);
-	//glBegin(GL_TRIANGLES);
-	//	glVertex3f(-.5, -.5, .0); glVertex3f(.5, .0, .0); glVertex3f(.0, .5, .0);
-	//glEnd();
-	// Above render flickers. Probably need proper sync with Rift render
-	glutSwapBuffers();
-
 	ovrSessionStatus sessionStatus;
 	ovrResult result;
 	ovr_GetSessionStatus(session, &sessionStatus);
@@ -141,6 +135,8 @@ void glutDisplay(void) {
 	ovrTrackingState ts = ovr_GetTrackingState(session, ovr_GetTimeInSeconds(), ovrTrue);
 	printPositionAndOrientation(ts, timeStep);
 	timeStep++;
+
+	mirrorBuffer->render();
 }
 
 void glutIdle() {
@@ -159,7 +155,7 @@ int main(int argc, char** argv) {
 	std::cout << "Hello, Rift!" << std::endl;
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-	glutInitWindowSize(500, 500);
+	glutInitWindowSize(mirrorSize.w, mirrorSize.h);
 	glutInitWindowPosition(0, 0);
 	auto win = glutCreateWindow("Points");
 
@@ -175,14 +171,16 @@ int main(int argc, char** argv) {
 	ovrHmdDesc hmdDesc = ovr_GetHmdDesc(session);
 	printHmdInfo(hmdDesc);
 
-	// Make eye render buffers
+	// Make eye render and mirror buffers
 	for (int eye = 0; eye < 2; ++eye)
 	{
 		ovrSizei idealTextureSize = ovr_GetFovTextureSize(session, ovrEyeType(eye), hmdDesc.DefaultEyeFov[eye], 1);
 		eyeRenderTexture[eye] = new OculusTextureBuffer(session, idealTextureSize, 1);
 		if (!eyeRenderTexture[eye]->ColorTextureChain || !eyeRenderTexture[eye]->DepthTextureChain) { return 0; }
 	}
-	
+	mirrorBuffer = new OculusMirrorBuffer(session, mirrorSize);
+
+
 	// Turn off vsync
 	// wglSwapIntervalEXT(0); // throws "Access violation executing location" exception :-( glad problem?
 
@@ -199,6 +197,7 @@ int main(int argc, char** argv) {
 	for (int eye = 0; eye < 2; ++eye) {
 		delete eyeRenderTexture[eye];
 	}
+	delete mirrorBuffer;
 	ovr_Destroy(session);
 	ovr_Shutdown();
 	std::cout << "Bye, Rift!" << std::endl;
