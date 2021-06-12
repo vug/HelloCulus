@@ -1,6 +1,8 @@
 #include <iomanip>
 #include <iostream>
 
+#include <glad/glad_wgl.h>
+#include <glad/glad.h>
 #include <GL/freeglut.h>
 #include <Windows.h>
 
@@ -70,6 +72,8 @@ int main(int argc, char** argv) {
 	glutInitWindowSize(500, 500);
 	glutInitWindowPosition(0, 0);
 	auto win = glutCreateWindow("Points");
+
+	if (!gladLoadGL()) { std::cout << "Failed to initialize OpenGL context" << std::endl; return -1; }
 
 	ovrResult result = ovr_Initialize(nullptr);
 	if (OVR_FAILURE(result)) { std::cout << "Initialization failed with result code " << result << std::endl;  return result; }
