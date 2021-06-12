@@ -322,6 +322,8 @@ int main(int argc, char** argv) {
 		eyeRenderTexture[eye] = new OculusTextureBuffer(session, idealTextureSize, 1);
 		if (!eyeRenderTexture[eye]->ColorTextureChain || !eyeRenderTexture[eye]->DepthTextureChain) { return 0; }
 	}
+	// FloorLevel will give tracking poses where the floor height is 0
+	ovr_SetTrackingOriginType(session, ovrTrackingOrigin_FloorLevel);
 
 	std::cout << "Press Q to quit." << std::endl;
 	glutDisplayFunc(glutDisplay);
