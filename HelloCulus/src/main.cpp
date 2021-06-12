@@ -114,6 +114,26 @@ void glutDisplay(void) {
 
 	glutSwapBuffers();
 
+	ovrSessionStatus sessionStatus;
+	ovrResult result;
+	ovr_GetSessionStatus(session, &sessionStatus);
+
+	// Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyePose) may change at runtime.
+	ovrEyeRenderDesc eyeRenderDesc[2];
+	ovrHmdDesc hmdDesc2 = ovr_GetHmdDesc(session);
+	eyeRenderDesc[0] = ovr_GetRenderDesc(session, ovrEye_Left, hmdDesc2.DefaultEyeFov[0]);
+	eyeRenderDesc[1] = ovr_GetRenderDesc(session, ovrEye_Right, hmdDesc2.DefaultEyeFov[1]);
+	hmdToEyeViewPose[0] = eyeRenderDesc[0].HmdToEyePose;
+	hmdToEyeViewPose[1] = eyeRenderDesc[1].HmdToEyePose;
+
+	// Get eye poses, feeding in correct IPD offset
+	ovrPosef EyeRenderPose[2];
+	ovrPosef HmdToEyePose[2] = { eyeRenderDesc[0].HmdToEyePose,
+								 eyeRenderDesc[1].HmdToEyePose };
+	double sensorSampleTime;    // sensorSampleTime is fed into the layer later
+	ovr_GetEyePoses(session, frameIndex, ovrTrue, HmdToEyePose, EyeRenderPose, &sensorSampleTime);
+
+	ovrTimewarpProjectionDesc posTimewarpProjectionDesc = {};
 	ovrTrackingState ts = ovr_GetTrackingState(session, ovr_GetTimeInSeconds(), ovrTrue);
 	printPositionAndOrientation(ts, timeStep);
 	timeStep++;
