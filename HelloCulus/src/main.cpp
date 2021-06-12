@@ -1,7 +1,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include <glut.h>
+#include <GL/freeglut.h>
 #include <Windows.h>
 
 #include <OVR_CAPI.h>
@@ -58,11 +58,7 @@ void glutIdle() {
 void glutKeyboard(unsigned char key, int x, int y) {
 	if (key == 'q') {
 		glutDestroyWindow(glutGetWindow());
-
-		ovr_Destroy(session);
-		ovr_Shutdown();
-		std::cout << "Bye, Rift!" << std::endl;
-		exit(0);
+		glutLeaveMainLoop();		
 	}
 }
 
@@ -90,5 +86,9 @@ int main(int argc, char** argv) {
 	glutIdleFunc(glutIdle);
 	glutKeyboardFunc(glutKeyboard);
 	glutMainLoop();
+
+	ovr_Destroy(session);
+	ovr_Shutdown();
+	std::cout << "Bye, Rift!" << std::endl;
 	return 0;
 }
