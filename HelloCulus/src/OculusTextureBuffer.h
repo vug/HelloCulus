@@ -9,6 +9,43 @@
 #include <OVR_CAPI_GL.h>
 #include <Extras/OVR_Math.h>
 
+struct OculusMirrorBuffer {
+	ovrMirrorTexture mirrorTexture;
+	GLuint fboId;
+	OVR::Sizei texSize;
+
+	OculusMirrorBuffer(const ovrSession& session, OVR::Sizei size) :
+		mirrorTexture(nullptr),
+		fboId(0),
+		texSize(size) {
+		ovrMirrorTextureDesc desc;
+		memset(&desc, 0, sizeof(desc));
+		desc.Width = texSize.w;
+		desc.Height = texSize.h;
+		desc.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+		ovrResult result = ovr_CreateMirrorTextureGL(session, &desc, &mirrorTexture);
+		if (!OVR_SUCCESS(result)) { std::cout << "Unable to create mirror texture" << std::endl; exit(0); }
+		GLuint texId;
+		ovr_GetMirrorTextureBufferGL(session, mirrorTexture, &texId);
+		glGenFramebuffers(1, &fboId);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, fboId);
+		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texId, 0);
+		glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	}
+
+	void render() {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, fboId);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBlitFramebuffer(0, texSize.h, texSize.w, 0,
+			0, 0, texSize.w, texSize.h,
+			GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+		glutSwapBuffers();
+	}
+};
+
 
 struct OculusTextureBuffer
 {
