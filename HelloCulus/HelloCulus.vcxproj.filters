@@ -26,7 +26,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\OculusTextureBuffer.h">
+    <ClInclude Include="src\OculusBuffers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
