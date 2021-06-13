@@ -158,6 +158,9 @@
   <ItemGroup>
     <ClInclude Include="src\OculusBuffers.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="src\shaders\default.glsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

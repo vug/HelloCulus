@@ -1,5 +1,7 @@
+#include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <string>
 
 #include <glad/glad_wgl.h>
 #include <glad/glad.h>
@@ -43,7 +45,37 @@ OculusTextureBuffer* eyeRenderTexture[2] = { nullptr, nullptr };
 long long frameIndex = 0;
 OVR::Sizei mirrorSize(600, 300);
 OculusMirrorBuffer* mirrorBuffer;
-GLuint prog;
+GLuint prog, fragShaderId;
+std::string shader_filepath;
+
+void loadShader() {
+	// (2160, 1200), (1344, 1600)
+	const static char* shader_simple_flat = \
+		"uniform float time = 0.0f;"
+		"varying vec4 v;"
+		"void main() {"
+		"    vec2 v = gl_FragCoord.xy / vec2(1344, 1600);"
+		"    v = mod(vec2(v.x + time, v.y), 1.0);"
+		"    gl_FragColor = vec4(floor(v.x * 10) / 10, floor(v.y * 10) / 10, 0.0, 1.0);"
+		"}";
+
+	const char* shader_code;
+	if (shader_filepath.empty()) {
+		glShaderSource(fragShaderId, 1, &shader_simple_flat, 0);
+	}
+	else {
+		std::cout << "Loading shader file... " << shader_filepath << std::endl;
+		std::ifstream input_file(shader_filepath);
+		if (!input_file.is_open()) { std::cerr << "Could not open file: " << shader_filepath << std::endl; exit(EXIT_FAILURE); }
+		std::string shader_string = std::string((std::istreambuf_iterator<char>(input_file)), std::istreambuf_iterator<char>());
+		const char* code = shader_string.c_str();
+		glShaderSource(fragShaderId, 1, &code, 0);
+	}
+	glCompileShader(fragShaderId);
+	glAttachShader(prog, fragShaderId);
+	glLinkProgram(prog);
+	glUseProgram(prog);
+}
 
 void glutDisplay(void) {
 	ovrSessionStatus sessionStatus;
@@ -166,11 +198,18 @@ void glutKeyboard(unsigned char key, int x, int y) {
 		glutDestroyWindow(glutGetWindow());
 		glutLeaveMainLoop();		
 	}
+	if (key == 'r') {
+		loadShader();
+	}
 }
 
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
 	std::cout << "Hello, Rift!" << std::endl;
+	shader_filepath = "C:\\Users\\veliu\\Documents\\repos\\HelloCulus\\HelloCulus\\src\\shaders\\default.glsl";
+	if (argc > 1) {
+		shader_filepath = argv[1];
+	}
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 	glutInitWindowSize(mirrorSize.w, mirrorSize.h);
@@ -180,7 +219,7 @@ int main(int argc, char** argv) {
 	if (!gladLoadGL()) { std::cout << "Failed to initialize OpenGL context" << std::endl; return -1; }
 
 	ovrResult result = ovr_Initialize(nullptr);
-	if (OVR_FAILURE(result)) { std::cout << "Initialization failed with result code " << result << std::endl;  return result; }
+	if (OVR_FAILURE(result)) { std::cout << "Initialization failed with result code " << result << std::endl; return result; }
 
 	ovrGraphicsLuid luid;
 	result = ovr_Create(&session, &luid);
@@ -200,84 +239,8 @@ int main(int argc, char** argv) {
 	mirrorBuffer = new OculusMirrorBuffer(session, mirrorSize);
 
 	prog = glCreateProgram();
-	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-	// (2160, 1200), (1344, 1600)
-	const static char* fsh2 = \
-		"uniform float time = 0.0f;"
-		"varying vec4 v;"
-		"void main() {"
-		"vec2 v = gl_FragCoord.xy / vec2(1344, 1600);"
-		"v = mod(vec2(v.x + time, v.y), 1.0);"
-		"gl_FragColor=vec4(floor(v.x * 10) / 10, floor(v.y * 10) / 10, 0.0, 1.0);"
-		"}";
-
-	const static char* fsh = \
-		"uniform float time = 0.0f;"
-		"uniform vec3 ro = vec3(0, 0, 1.0);"
-		"uniform mat4 view = mat4(1.0);"
-		"uniform mat4 proj = mat4(1.0);"
-		"uniform float frustFovH = 1.7;"
-		"uniform float frustFovV = 1.2;"
-		"uniform int eyeNo = 0;"
-
-		"float radius = 1.;"
-
-		"float map(vec3 p) {"
-		"    float d = distance(p, vec3(-1 + sin(time) * 2.0, 0, -5)) - radius;"
-		"    d = min(d, distance(p, vec3(2, 0, -3)) - radius);"
-		"    d = min(d, distance(p, vec3(-2, 0, -2)) - radius);"
-		"    d = min(d, p.y + 1.);" // floor (?)
-		"    return d;"
-		"}"
-		"vec3 calcNormal(vec3 p) {"
-		"    vec2 e = vec2(1.0, -1.0) * 0.0005;"
-		"    return normalize("
-		"        e.xyy * map(p + e.xyy) +"
-		"        e.yyx * map(p + e.yyx) +"
-		"        e.yxy * map(p + e.yxy) +"
-		"        e.xxx * map(p + e.xxx));"
-		"}"
-		""
-		"void main() {"
-		"    vec2 res = vec2(1344, 1600);"
-		"    vec2 q = (1.0 * gl_FragCoord.xy - 0.5 * res) / res;" // [-1, 1]
-		"    vec3 rdFixed = normalize(vec3(q, -1));"
-
-		"    vec3 forward = normalize( view * vec4(0, 0, -1, 1) );" // local forward
-		"    vec3 u = normalize( cross(vec3(0, 1, 0), forward) );" // local X
-		"    vec3 v = normalize( cross(forward, u) );" // local Y
-		"    vec3 rd = normalize( -q.x * u + q.y * v + 1.5 * forward );" // make zoom a parameter
-
-		//"    float z = 0.1 / tan(frustFovV * 0.1);"
-		//"    vec3 rd = normalize((view * vec4(q.x, q.y, -z, 1.0)).xyz);"
-
-		"    float correction = 1.0;" // eye distance correction, don't know why it works. 
-		"    if (eyeNo == 0) { ro += u * correction; }"
-		"    if (eyeNo == 1) { ro -= u * correction; }"
-
-		"    float h, t = 1.;"
-		"    for (int i = 0; i < 256; i++) {"
-		"        h = map(ro + rd * t);"
-		"        t += h;"
-		"        if (h < 0.01) break;"
-		"    }"
-		"    if (h < 0.01) {"
-		"        vec3 p = ro + rd * t;"
-		"        vec3 normal = calcNormal(p);"
-		"        vec3 light = vec3(0, 3, 0);"
-		"        float dif = clamp(dot(normal, normalize(light - p)), 0., 1.);"
-		"        dif *= 5. / dot(light - p, light - p);"
-		"        gl_FragColor = vec4(vec3(pow(dif, 0.4545)), 1);"
-		"    } else {"
-		"        gl_FragColor = vec4(0, 0, 0, 1);"
-		"    }"
-		"}";
-	glShaderSource(fs, 1, &fsh, 0);
-	glCompileShader(fs);
-	glAttachShader(prog, fs);
-	glLinkProgram(prog);
-	glUseProgram(prog);
-
+	fragShaderId = glCreateShader(GL_FRAGMENT_SHADER);
+	loadShader();
 
 	// Turn off vsync
 	// wglSwapIntervalEXT(0); // throws "Access violation executing location" exception :-( glad problem?
