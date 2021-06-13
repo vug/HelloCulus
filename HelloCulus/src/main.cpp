@@ -43,6 +43,7 @@ OculusTextureBuffer* eyeRenderTexture[2] = { nullptr, nullptr };
 long long frameIndex = 0;
 OVR::Sizei mirrorSize(600, 300);
 OculusMirrorBuffer* mirrorBuffer;
+GLuint prog;
 
 void glutDisplay(void) {
 	ovrSessionStatus sessionStatus;
@@ -100,11 +101,14 @@ void glutDisplay(void) {
 			v2 = combined.Transform(v2);
 			v3 = combined.Transform(v3);
 
-			glClear(GL_COLOR_BUFFER_BIT);
-			glBegin(GL_TRIANGLES);
-			glVertex3f(v1.x, v1.y, v1.z);
-			glVertex3f(v2.x, v2.y, v2.z);
-			glVertex3f(v3.x, v3.y, v3.z);
+			GLint uTime = glGetUniformLocation(prog, "time");
+			glProgramUniform1f(prog, uTime, sensorSampleTime);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glBegin(GL_QUADS);
+			glVertex3f(-1, -1, 0);
+			glVertex3f(1, -1, 0);
+			glVertex3f(1, 1, 0);
+			glVertex3f(-1, 1, 0);
 			glEnd();
 
 			eyeRenderTexture[eye]->UnsetRenderSurface();
@@ -179,6 +183,23 @@ int main(int argc, char** argv) {
 		if (!eyeRenderTexture[eye]->ColorTextureChain || !eyeRenderTexture[eye]->DepthTextureChain) { return 0; }
 	}
 	mirrorBuffer = new OculusMirrorBuffer(session, mirrorSize);
+
+	prog = glCreateProgram();
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+	// (2160, 1200), (1344, 1600)
+	const static char* fsh = \
+		"uniform float time = 0.0f;"
+		"varying vec4 v;"
+		"void main() {"
+		"vec2 v = gl_FragCoord.xy / vec2(1344, 1600);"
+		"v = mod(vec2(v.x + time, v.y), 1.0);"
+		"gl_FragColor=vec4(floor(v.x * 10) / 10, floor(v.y * 10) / 10, 0.0, 1.0);"
+		"}";
+	glShaderSource(fs, 1, &fsh, 0);
+	glCompileShader(fs);
+	glAttachShader(prog, fs);
+	glLinkProgram(prog);
+	glUseProgram(prog);
 
 
 	// Turn off vsync
