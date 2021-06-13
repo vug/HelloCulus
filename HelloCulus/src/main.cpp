@@ -66,6 +66,8 @@ void glutDisplay(void) {
 	double sensorSampleTime;    // sensorSampleTime is fed into the layer later
 	ovr_GetEyePoses(session, frameIndex, ovrTrue, HmdToEyePose, EyeRenderPose, &sensorSampleTime);
 
+	ovrTrackerDesc trackerDesc = ovr_GetTrackerDesc(session, 0);
+
 	ovrTimewarpProjectionDesc posTimewarpProjectionDesc = {};
 
 	if (sessionStatus.ShouldQuit) glutLeaveMainLoop();
@@ -77,7 +79,8 @@ void glutDisplay(void) {
 
 		// Render Scene to Eye Buffers
 		result = ovr_BeginFrame(session, frameIndex);
-		OVR::Vector3f originPos(0.0f, 0.0f, 0.0f);
+		//OVR::Vector3f originPos(0.0f, 0.0f, 0.0f);
+		OVR::Vector3f originPos(-0.3f, -1.1f, 1.4f);
 		OVR::Matrix4f originRot = OVR::Matrix4f::Identity();
 		for (int eye = 0; eye < 2; eye++) {
 			eyeRenderTexture[eye]->SetAndClearRenderSurface();
@@ -103,6 +106,15 @@ void glutDisplay(void) {
 
 			GLint uTime = glGetUniformLocation(prog, "time");
 			glProgramUniform1f(prog, uTime, sensorSampleTime);
+			GLint uEyePos = glGetUniformLocation(prog, "ro");
+			glProgramUniform3f(prog, uEyePos, pos.x, pos.y, pos.z);
+			GLint uView = glGetUniformLocation(prog, "view");
+			glProgramUniformMatrix4fv(prog, uView, 1, GL_FALSE, &(view.M[0][0]));
+			GLint uProj = glGetUniformLocation(prog, "proj");
+			glProgramUniformMatrix4fv(prog, uProj, 1, GL_FALSE, &(proj.M[0][0]));
+			glProgramUniform1f(prog, glGetUniformLocation(prog, "frustFovH"), trackerDesc.FrustumHFovInRadians);
+			glProgramUniform1f(prog, glGetUniformLocation(prog, "frustFovV"), trackerDesc.FrustumVFovInRadians);
+
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glBegin(GL_QUADS);
 			glVertex3f(-1, -1, 0);
@@ -187,13 +199,61 @@ int main(int argc, char** argv) {
 	prog = glCreateProgram();
 	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
 	// (2160, 1200), (1344, 1600)
-	const static char* fsh = \
+	const static char* fsh2 = \
 		"uniform float time = 0.0f;"
 		"varying vec4 v;"
 		"void main() {"
 		"vec2 v = gl_FragCoord.xy / vec2(1344, 1600);"
 		"v = mod(vec2(v.x + time, v.y), 1.0);"
 		"gl_FragColor=vec4(floor(v.x * 10) / 10, floor(v.y * 10) / 10, 0.0, 1.0);"
+		"}";
+	const static char* fsh = \
+		"uniform float time = 0.0f;"
+		"uniform vec3 ro = vec3(0, 0, 1.0);"
+		"uniform mat4 view = mat4(1.0);"
+		"uniform mat4 proj = mat4(1.0);"
+		"uniform float frustFovH = 1.7;"
+		"uniform float frustFovV = 1.2;"
+		"varying vec2 q;"
+		"float map(vec3 p) {"
+		"    float d = distance(p, vec3(-1 + sin(time) * 2.0, 0, -5)) - 1.;"
+		"    d = min(d, distance(p, vec3(2, 0, -3)) - 1.);"
+		"    d = min(d, distance(p, vec3(-2, 0, -2)) - 1.);"
+		"    d = min(d, p.y + 1.);"
+		"    return d;"
+		"}"
+		"vec3 calcNormal(vec3 p) {"
+		"    vec2 e = vec2(1.0, -1.0) * 0.0005;"
+		"    return normalize("
+		"        e.xyy * map(p + e.xyy) +"
+		"        e.yyx * map(p + e.yyx) +"
+		"        e.yxy * map(p + e.yxy) +"
+		"        e.xxx * map(p + e.xxx));"
+		"}"
+		""
+		"void main() {"
+		"    vec2 res = vec2(1344, 1600);"
+		"    vec2 q = 0.2  * (2.0 * gl_FragCoord.xy - res) / res;"
+		"    vec3 rdFixed = normalize(vec3(q, -1));          "
+		"    float z = 0.1 / tan(frustFovV * 0.1);"
+		"    vec3 rd = normalize((view * vec4(q.x, q.y, -z, 1.0)).xyz);"
+
+		"    float h, t = 1.;"
+		"    for (int i = 0; i < 256; i++) {"
+		"        h = map(ro + rd * t);"
+		"        t += h;"
+		"        if (h < 0.01) break;"
+		"    }"
+		"    if (h < 0.01) {"
+		"        vec3 p = ro + rd * t;"
+		"        vec3 normal = calcNormal(p);"
+		"        vec3 light = vec3(0, 2, 0);"
+		"        float dif = clamp(dot(normal, normalize(light - p)), 0., 1.);"
+		"        dif *= 5. / dot(light - p, light - p);"
+		"        gl_FragColor = vec4(vec3(pow(dif, 0.4545)), 1);"
+		"    } else {"
+		"        gl_FragColor = vec4(0, 0, 0, 1);"
+		"    }"
 		"}";
 	glShaderSource(fs, 1, &fsh, 0);
 	glCompileShader(fs);
