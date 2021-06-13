@@ -87,6 +87,7 @@ void glutDisplay(void) {
 
 			// Get view and projection matrices for the Rift camera
 			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position);
+			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position); // can scale Position to make camera move faster in VR world
 			OVR::Matrix4f rot = originRot * OVR::Matrix4f(EyeRenderPose[eye].Orientation);
 
 			OVR::Vector3f finalUp = rot.Transform(OVR::Vector3f(0, 1, 0));
@@ -114,6 +115,7 @@ void glutDisplay(void) {
 			glProgramUniformMatrix4fv(prog, uProj, 1, GL_FALSE, &(proj.M[0][0]));
 			glProgramUniform1f(prog, glGetUniformLocation(prog, "frustFovH"), trackerDesc.FrustumHFovInRadians);
 			glProgramUniform1f(prog, glGetUniformLocation(prog, "frustFovV"), trackerDesc.FrustumVFovInRadians);
+			glProgramUniform1i(prog, glGetUniformLocation(prog, "eyeNo"), eye);
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glBegin(GL_QUADS);
@@ -217,6 +219,7 @@ int main(int argc, char** argv) {
 		"uniform float frustFovH = 1.7;"
 		"uniform float frustFovV = 1.2;"
 		"varying vec2 q;"
+		"uniform int eyeNo = 0;"
 		"float map(vec3 p) {"
 		"    float d = distance(p, vec3(-1 + sin(time) * 2.0, 0, -5)) - 1.;"
 		"    d = min(d, distance(p, vec3(2, 0, -3)) - 1.);"
@@ -235,10 +238,20 @@ int main(int argc, char** argv) {
 		""
 		"void main() {"
 		"    vec2 res = vec2(1344, 1600);"
-		"    vec2 q = 0.2  * (2.0 * gl_FragCoord.xy - res) / res;"
-		"    vec3 rdFixed = normalize(vec3(q, -1));          "
-		"    float z = 0.1 / tan(frustFovV * 0.1);"
-		"    vec3 rd = normalize((view * vec4(q.x, q.y, -z, 1.0)).xyz);"
+		"    vec2 q = (1.0 * gl_FragCoord.xy - 0.5 * res) / res;" // [-1, 1]
+		"    vec3 rdFixed = normalize(vec3(q, -1));"
+
+		"    vec3 forward = normalize( view * vec4(0, 0, -1, 1) );" // local forward
+		"    vec3 u = normalize( cross(vec3(0, 1, 0), forward) );" // local X
+		"    vec3 v = normalize( cross(forward, u) );" // local Y
+		"    vec3 rd = normalize( -q.x * u + q.y * v + 1.5 * forward );" // make zoom a parameter
+
+		//"    float z = 0.1 / tan(frustFovV * 0.1);"
+		//"    vec3 rd = normalize((view * vec4(q.x, q.y, -z, 1.0)).xyz);"
+
+		"    float correction = 1.0;" // eye distance correction, don't know why it works. 
+		"    if (eyeNo == 0) { ro += u * correction; }"
+		"    if (eyeNo == 1) { ro -= u * correction; }"
 
 		"    float h, t = 1.;"
 		"    for (int i = 0; i < 256; i++) {"
