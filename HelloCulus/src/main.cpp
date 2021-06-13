@@ -86,7 +86,6 @@ void glutDisplay(void) {
 			eyeRenderTexture[eye]->SetAndClearRenderSurface();
 
 			// Get view and projection matrices for the Rift camera
-			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position);
 			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position); // can scale Position to make camera move faster in VR world
 			OVR::Matrix4f rot = originRot * OVR::Matrix4f(EyeRenderPose[eye].Orientation);
 
@@ -211,6 +210,7 @@ int main(int argc, char** argv) {
 		"v = mod(vec2(v.x + time, v.y), 1.0);"
 		"gl_FragColor=vec4(floor(v.x * 10) / 10, floor(v.y * 10) / 10, 0.0, 1.0);"
 		"}";
+
 	const static char* fsh = \
 		"uniform float time = 0.0f;"
 		"uniform vec3 ro = vec3(0, 0, 1.0);"
@@ -218,13 +218,15 @@ int main(int argc, char** argv) {
 		"uniform mat4 proj = mat4(1.0);"
 		"uniform float frustFovH = 1.7;"
 		"uniform float frustFovV = 1.2;"
-		"varying vec2 q;"
 		"uniform int eyeNo = 0;"
+
+		"float radius = 1.;"
+
 		"float map(vec3 p) {"
-		"    float d = distance(p, vec3(-1 + sin(time) * 2.0, 0, -5)) - 1.;"
-		"    d = min(d, distance(p, vec3(2, 0, -3)) - 1.);"
-		"    d = min(d, distance(p, vec3(-2, 0, -2)) - 1.);"
-		"    d = min(d, p.y + 1.);"
+		"    float d = distance(p, vec3(-1 + sin(time) * 2.0, 0, -5)) - radius;"
+		"    d = min(d, distance(p, vec3(2, 0, -3)) - radius);"
+		"    d = min(d, distance(p, vec3(-2, 0, -2)) - radius);"
+		"    d = min(d, p.y + 1.);" // floor (?)
 		"    return d;"
 		"}"
 		"vec3 calcNormal(vec3 p) {"
@@ -262,7 +264,7 @@ int main(int argc, char** argv) {
 		"    if (h < 0.01) {"
 		"        vec3 p = ro + rd * t;"
 		"        vec3 normal = calcNormal(p);"
-		"        vec3 light = vec3(0, 2, 0);"
+		"        vec3 light = vec3(0, 3, 0);"
 		"        float dif = clamp(dot(normal, normalize(light - p)), 0., 1.);"
 		"        dif *= 5. / dot(light - p, light - p);"
 		"        gl_FragColor = vec4(vec3(pow(dif, 0.4545)), 1);"
