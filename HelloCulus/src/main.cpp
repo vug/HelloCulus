@@ -123,6 +123,7 @@ void glutDisplay(void) {
 			glVertex3f(-1, 1, 0);
 			glEnd();
 
+
 			eyeRenderTexture[eye]->UnsetRenderSurface();
 			eyeRenderTexture[eye]->Commit();
 		}
@@ -132,7 +133,6 @@ void glutDisplay(void) {
 		ld.Header.Flags = ovrLayerFlag_TextureOriginAtBottomLeft;
 		ld.ProjectionDesc = posTimewarpProjectionDesc;
 		ld.SensorSampleTime = sensorSampleTime;
-
 		for (int eye = 0; eye < 2; ++eye)
 		{
 			ld.ColorTexture[eye] = eyeRenderTexture[eye]->ColorTextureChain;
@@ -141,10 +141,11 @@ void glutDisplay(void) {
 			ld.Fov[eye] = hmdDesc2.DefaultEyeFov[eye];
 			ld.RenderPose[eye] = EyeRenderPose[eye];
 		}
-
 		// Submit frame with one layer we have.
 		ovrLayerHeader* layers = &ld.Header;
-		result = ovr_EndFrame(session, frameIndex, nullptr, &layers, 1);
+		unsigned int layerCount = 1;
+		result = ovr_EndFrame(session, frameIndex, nullptr, &layers, layerCount);
+
 		++frameIndex;
 	}
 
@@ -191,6 +192,7 @@ int main(int argc, char** argv) {
 	for (int eye = 0; eye < 2; ++eye)
 	{
 		ovrSizei idealTextureSize = ovr_GetFovTextureSize(session, ovrEyeType(eye), hmdDesc.DefaultEyeFov[eye], 1);
+		std::cout << "Idea Texture Size: (" << idealTextureSize.w << ", " << idealTextureSize.h << ")" << std::endl;
 		eyeRenderTexture[eye] = new OculusTextureBuffer(session, idealTextureSize, 1);
 		if (!eyeRenderTexture[eye]->ColorTextureChain || !eyeRenderTexture[eye]->DepthTextureChain) { return 0; }
 	}
@@ -266,7 +268,7 @@ int main(int argc, char** argv) {
 	// wglSwapIntervalEXT(0); // throws "Access violation executing location" exception :-( glad problem?
 
 	// FloorLevel will give tracking poses where the floor height is 0
-	ovr_SetTrackingOriginType(session, ovrTrackingOrigin_FloorLevel);
+	ovr_SetTrackingOriginType(session, ovrTrackingOrigin_FloorLevel); // ovrTrackingOrigin_EyeLevel
 
 	std::cout << "Press Q to quit." << std::endl;
 	glutDisplayFunc(glutDisplay);
