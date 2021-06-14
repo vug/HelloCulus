@@ -72,3 +72,24 @@ vec3 rd = normalize(-uv.x * u + uv.y * v + zoom * forward); // zoom = 1.5
 * Even though, the app can reload shaders, editing them while the app is running is not as convenient. Need to remove headset, edit file on computer, reload, put the headset back.
   * Instead, having an editor that overlays on top of the rendered visuals in VR could be a better solution. (There are other GLSL renderes with that ability)
   * Say, press a button to open the text editor, which should be rendere using a `Quad` Layer type. User edits the file while keeping the headset. Then reload and hide with different buttons.
+
+# References
+
+Used following resources for learning and developing
+
+## Oculus
+Official
+* [PC SDK Developer Guide \| Oculus Developers](https://developer.oculus.com/documentation/native/pc/book-dg/) 
+* [Getting Started with the Demos \| Oculus Developers](https://developer.oculus.com/documentation/native/pc/gsg-intro-oneworld/)
+* [Oculus - Libovr 1.43 Reference Guide](https://developer.oculus.com/reference/libovr/1.43/o_v_r_c_a_p_i_8h/)
+
+Other
+* [Manning \| Oculus Rift in Action](https://www.manning.com/books/oculus-rift-in-action) (code is very outdated)
+    * [OculusRiftInAction/GlfwApp\.cpp at master · OculusRiftInAction/OculusRiftInAction](https://github.com/OculusRiftInAction/OculusRiftInAction/blob/master/examples/cpp/common/glfw/GlfwApp.cpp)
+* [Complete OpenGL / Oculus SDK example in a single file : oculus](https://www.reddit.com/r/oculus/comments/2kuwam/complete_opengl_oculus_sdk_example_in_a_single/)
+* [jherico/OculusMinimalExample](https://github.com/jherico/OculusMinimalExample)
+* [jimbo00000/RiftRay: Step into the worlds of Shadertoy with an Oculus Rift\.](https://github.com/jimbo00000/RiftRay) another Shadertoy-like app from 5 years ago.
+    * [RiftRay/main\_glfw\_ovrsdk13\.cpp at master · jimbo00000/RiftRay](https://github.com/jimbo00000/RiftRay/blob/master/src/main_glfw_ovrsdk13.cpp)
+## Other libraries
+* [The freeglut Project :: API Documentation](http://freeglut.sourceforge.net/docs/api.php)
+* [Dav1dde/glad: Multi\-Language Vulkan/GL/GLES/EGL/GLX/WGL Loader\-Generator based on the official specs\.](https://github.com/Dav1dde/glad)
