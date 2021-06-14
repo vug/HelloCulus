@@ -32,5 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="src\shaders\default.glsl" />
+    <None Include="src\shaders\berry.glsl" />
+    <None Include="src\shaders\gyroid.glsl" />
   </ItemGroup>
 </Project>
