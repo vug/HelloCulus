@@ -49,6 +49,15 @@ OculusMirrorBuffer* mirrorBuffer;
 GLuint prog, fragShaderId;
 std::string shader_filepath;
 float param1 = 0.1;
+const float PI = 3.141592653589793;
+
+OVR::Vector3f finalUp, finalForward, finalSide;
+//OVR::Vector3f originPos(-0.3f, -1.1f, 1.4f);
+//OVR::Vector3f originPos(-0.218, -0.859, +0.117);
+OVR::Vector3f originPos(-0.006, -0.798, -0.294);
+//OVR::Matrix4f originRot = OVR::Matrix4f::Identity();
+OVR::Matrix4f originRot = OVR::Matrix4f::RotationY(PI) * OVR::Matrix4f::Identity();
+int dir = 0;
 
 void loadShader() {
 	// (2160, 1200), (1344, 1600)
@@ -128,18 +137,16 @@ void glutDisplay(void) {
 
 		// Render Scene to Eye Buffers
 		result = ovr_BeginFrame(session, frameIndex);
-		//OVR::Vector3f originPos(0.0f, 0.0f, 0.0f);
-		OVR::Vector3f originPos(-0.3f, -1.1f, 1.4f);
-		OVR::Matrix4f originRot = OVR::Matrix4f::Identity();
 		for (int eye = 0; eye < 2; eye++) {
 			eyeRenderTexture[eye]->SetAndClearRenderSurface();
 
 			// Get view and projection matrices for the Rift camera
-			OVR::Vector3f pos = originPos + originRot.Transform(EyeRenderPose[eye].Position); // can scale Position to make camera move faster in VR world
+			OVR::Vector3f pos = originPos + EyeRenderPose[eye].Position; // originRot.Transform(EyeRenderPose[eye].Position); // can scale Position to make camera move faster in VR world
 			OVR::Matrix4f rot = originRot * OVR::Matrix4f(EyeRenderPose[eye].Orientation);
 
-			OVR::Vector3f finalUp = rot.Transform(OVR::Vector3f(0, 1, 0));
-			OVR::Vector3f finalForward = rot.Transform(OVR::Vector3f(0, 0, -1));
+			finalUp = rot.Transform(OVR::Vector3f(0, 1, 0));
+			finalForward = rot.Transform(OVR::Vector3f(0, 0, -1));
+			finalSide = rot.Transform(OVR::Vector3f(1, 0, 0));
 			OVR::Matrix4f view = OVR::Matrix4f::LookAtRH(pos, pos + finalForward, finalUp);
 			OVR::Matrix4f proj = ovrMatrix4f_Projection(hmdDesc2.DefaultEyeFov[eye], 0.2f, 1000.0f, ovrProjection_None);
 			OVR::Matrix4f combined = proj * view;
@@ -226,6 +233,40 @@ void glutKeyboard(unsigned char key, int x, int y) {
 	if (key == 'k') {
 		param1 -= 0.1;
 		std::cout << "param1: " << param1 << std::endl;
+	}
+	if (key == 'w') {
+		originPos += finalForward * 0.1;
+		std::cout << "originPos: (" << originPos.x << ", " << originPos.y << ", " << originPos.z << ")" << std::endl;
+	}
+	if (key == 's') {
+		originPos -= finalForward * 0.1;
+		std::cout << "originPos: (" << originPos.x << ", " << originPos.y << ", " << originPos.z << ")" << std::endl;
+	}
+	if (key == 'a') {
+		originPos -= finalSide * 0.1;
+		std::cout << "originPos: (" << originPos.x << ", " << originPos.y << ", " << originPos.z << ")" << std::endl;
+	}
+	if (key == 'd') {
+		originPos += finalSide * 0.1;
+		std::cout << "originPos: (" << originPos.x << ", " << originPos.y << ", " << originPos.z << ")" << std::endl;
+	}
+	if (key == 'q') {
+		originPos += finalUp * 0.1;
+		std::cout << "originPos: (" << originPos.x << ", " << originPos.y << ", " << originPos.z << ")" << std::endl;
+	}
+	if (key == 'e') {
+		originPos -= finalUp * 0.1;
+		std::cout << "originPos: (" << originPos.x << ", " << originPos.y << ", " << originPos.z << ")" << std::endl;
+	}
+	if (key == '4') {
+		originRot = OVR::Matrix4f::RotationY(PI / 8) * originRot;
+		dir += 1;
+		std::cout << "dir: " << dir << std::endl;
+	}
+	if (key == '6') {
+		originRot = OVR::Matrix4f::RotationY(-PI / 8) * originRot;
+		dir -= 1;
+		std::cout << "dir: " << dir << std::endl;
 	}
 }
 
