@@ -8,6 +8,7 @@ uniform mat4 proj = mat4(1.0);
 uniform float frustFovH = 1.7;
 uniform float frustFovV = 1.2;
 uniform int eyeNo = 0;
+uniform float param1 = 0.0;
 
 float radius = 1.;
 
@@ -43,7 +44,7 @@ void main()
     //float z = 0.1 / tan(frustFovV * 0.1);
     //vec3 rd = normalize((view * vec4(q.x, q.y, -z, 1.0)).xyz);
 
-    float correction = 1.0;
+    float correction = 0.5;
     vec3 roc;
     if (eyeNo == 0)
     {
@@ -51,7 +52,7 @@ void main()
     }
     if (eyeNo == 1)
     {
-        roc = ro + u * correction;
+        roc = ro - u * correction;
     }
 
     float h, t = 1.;
