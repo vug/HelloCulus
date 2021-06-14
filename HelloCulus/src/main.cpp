@@ -48,6 +48,7 @@ OVR::Sizei mirrorSize(600, 300);
 OculusMirrorBuffer* mirrorBuffer;
 GLuint prog, fragShaderId;
 std::string shader_filepath;
+float param1 = 0.1;
 
 void loadShader() {
 	// (2160, 1200), (1344, 1600)
@@ -163,6 +164,7 @@ void glutDisplay(void) {
 			glProgramUniform1f(prog, glGetUniformLocation(prog, "frustFovH"), trackerDesc.FrustumHFovInRadians);
 			glProgramUniform1f(prog, glGetUniformLocation(prog, "frustFovV"), trackerDesc.FrustumVFovInRadians);
 			glProgramUniform1i(prog, glGetUniformLocation(prog, "eyeNo"), eye);
+			glProgramUniform1f(prog, glGetUniformLocation(prog, "param1"), param1);
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glBegin(GL_QUADS);
@@ -216,6 +218,14 @@ void glutKeyboard(unsigned char key, int x, int y) {
 	}
 	if (key == 'r') {
 		loadShader();
+	}
+	if (key == 'j') {
+		param1 += 0.1;
+		std::cout << "param1: " << param1 << std::endl;
+	}
+	if (key == 'k') {
+		param1 -= 0.1;
+		std::cout << "param1: " << param1 << std::endl;
 	}
 }
 
