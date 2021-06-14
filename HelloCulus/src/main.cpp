@@ -212,11 +212,11 @@ void glutIdle() {
 }
 
 void glutKeyboard(unsigned char key, int x, int y) {
-	if (key == 'q') {
+	if (key == 27) { // Escape
 		glutDestroyWindow(glutGetWindow());
 		glutLeaveMainLoop();		
 	}
-	if (key == 'r') {
+	if (key == 'g') {
 		loadShader();
 	}
 	if (key == 'j') {
