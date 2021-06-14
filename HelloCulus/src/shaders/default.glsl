@@ -1,4 +1,7 @@
-uniform float time = 0.0f;
+#version 410
+out vec4 fragColor;
+
+uniform float time = 0.0;
 uniform vec3 ro = vec3(0, 0, 1.0);
 uniform mat4 view = mat4(1.0);
 uniform mat4 proj = mat4(1.0);
@@ -32,7 +35,7 @@ void main()
     vec2 q = (1.0 * gl_FragCoord.xy - 0.5 * res) / res; // [-1, 1]
     vec3 rdFixed = normalize(vec3(q, -1));
 
-    vec3 forward = normalize(view * vec4(0, 0, -1, 1)); // local forward
+    vec3 forward = normalize(view * vec4(0, 0, -1, 1)).xyz; // local forward
     vec3 u = normalize(cross(vec3(0, 1, 0), forward)); // local X
     vec3 v = normalize(cross(forward, u)); // local Y
     vec3 rd = normalize(-q.x * u + q.y * v + 1.5 * forward); // TODO: make zoom a parameter
@@ -41,34 +44,35 @@ void main()
     //vec3 rd = normalize((view * vec4(q.x, q.y, -z, 1.0)).xyz);
 
     float correction = 1.0;
+    vec3 roc;
     if (eyeNo == 0)
     {
-        ro += u * correction;
+        roc = ro + u * correction;
     }
     if (eyeNo == 1)
     {
-        ro -= u * correction;
+        roc = ro + u * correction;
     }
 
     float h, t = 1.;
     for (int i = 0; i < 256; i++)
     {
-        h = map(ro + rd * t);
+        h = map(roc + rd * t);
         t += h;
         if (h < 0.01)
             break;
     }
     if (h < 0.01)
     {
-        vec3 p = ro + rd * t;
+        vec3 p = roc + rd * t;
         vec3 normal = calcNormal(p);
         vec3 light = vec3(0, 3, 0);
         float dif = clamp(dot(normal, normalize(light - p)), 0., 1.);
         dif *= 5. / dot(light - p, light - p);
-        gl_FragColor = vec4(vec3(pow(dif, 0.4545)), 1);
+        fragColor = vec4(vec3(pow(dif, 0.4545)), 1);
     }
     else
     {
-        gl_FragColor = vec4(0, 0, 0, 1);
+        fragColor = vec4(0, 0, 0, 1);
     }
 }

@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <glad/glad_wgl.h>
 #include <glad/glad.h>
@@ -71,7 +72,22 @@ void loadShader() {
 		const char* code = shader_string.c_str();
 		glShaderSource(fragShaderId, 1, &code, 0);
 	}
+
 	glCompileShader(fragShaderId);
+	GLint is_compiled = 0;
+	glGetShaderiv(fragShaderId, GL_COMPILE_STATUS, &is_compiled);
+	GLint logLength = 0;
+	glGetShaderiv(fragShaderId, GL_INFO_LOG_LENGTH, &logLength);
+	// Can compile and have warnings, or can fail and have errors etc.
+	if (logLength > 0) {
+		std::vector<GLchar> infoLog(logLength);
+		glGetShaderInfoLog(fragShaderId, logLength, NULL, &infoLog[0]);
+		std::cout << "Log: " << std::string(infoLog.begin(), infoLog.end()) << std::endl;
+	}
+	if (is_compiled == GL_FALSE) {
+		std::cout << "Shader compilation failed." << is_compiled << std::endl;
+		return;
+	}
 	glAttachShader(prog, fragShaderId);
 	glLinkProgram(prog);
 	glUseProgram(prog);
@@ -261,6 +277,8 @@ int main(int argc, char* argv[]) {
 	delete mirrorBuffer;
 	ovr_Destroy(session);
 	ovr_Shutdown();
+	glDeleteProgram(prog);
+	glDeleteShader(fragShaderId);
 	std::cout << "Bye, Rift!" << std::endl;
 	return 0;
 }
