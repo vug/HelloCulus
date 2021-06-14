@@ -69,3 +69,6 @@ vec3 rd = normalize(-uv.x * u + uv.y * v + zoom * forward); // zoom = 1.5
 * Further abstractions in GLSL code would be good. 
   * Provide common GLSL functionality that'll be included with every shader (Perlin Noise, hash noise, raymarching logic, `ro` and `rd` computation, material logic, shadow logic, ...)
   * Let the artist just write the juicy part without boiler plate
+* Even though, the app can reload shaders, editing them while the app is running is not as convenient. Need to remove headset, edit file on computer, reload, put the headset back.
+  * Instead, having an editor that overlays on top of the rendered visuals in VR could be a better solution. (There are other GLSL renderes with that ability)
+  * Say, press a button to open the text editor, which should be rendere using a `Quad` Layer type. User edits the file while keeping the headset. Then reload and hide with different buttons.
